@@ -1,0 +1,3 @@
+([('lab_app_tab_test',
+   '/Users/Marko/coding/soil/dist/lab_app_tab_test',
+   'EXECUTABLE')],)
