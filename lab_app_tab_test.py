@@ -1,5 +1,5 @@
 import sys
-from PyQt5.QtCore import QFileInfo, QRect, QRegExp
+from PyQt5.QtCore import QFileInfo, QRect, QRegExp, Qt
 from PyQt5.QtWidgets import QMainWindow, QLineEdit, QLabel, QDesktopWidget, QMessageBox, QApplication, QPushButton, QWidget, QAction, QTabWidget,QVBoxLayout
 from PyQt5.QtGui import QIcon, QRegExpValidator
 from PyQt5.QtCore import pyqtSlot
@@ -17,6 +17,13 @@ class App(QMainWindow):
 
 		self.setWindowIcon(QIcon('test_icon.png'))
 
+		global vol
+		global g_cm3
+		global rd_dry          # temporary test for feststoffdichte
+		rd_dry = None           # temprory test for feststoffdichte
+		vol = " % Vol."
+		g_cm3 = " g/cm\u00B3"
+
 
 		self.table_widget = MyTableWidget(self)
 		self.setCentralWidget(self.table_widget)
@@ -26,8 +33,9 @@ class App(QMainWindow):
 		self.center()
 		self.show()
 
-		self.table_widget.btn_rd_Calc.clicked.connect(self.Input_none)
-		self.table_widget.btn_wkmax_calc.clicked.connect(self.Input_none2)
+		self.table_widget.btn_rd_Calc.clicked.connect(self.errorRohdichte)
+		self.table_widget.btn_wkmax_calc.clicked.connect(self.errorRohdichte)
+		self.table_widget.btn_festD_calc.clicked.connect(self.errorFeststoff)
 
 	def center(self):
 
@@ -60,17 +68,23 @@ class App(QMainWindow):
 				"The <b>Menu</b> example shows how to create menu-bar menus "
 				"and context menus.")
 
-	def Input_none(self):
+	def errorRohdichte(self):
 		try:
 			self.rohdichte()
 		except ValueError:
 			return(QMessageBox.warning(None, 'Error', 'Fehlende Parameter zur Berechnung!'))
 
-	def Input_none2(self):
+	def errorWkmax(self):
 		try:
 			self.wkmax()
 		except ValueError:
 			return(QMessageBox.warning(None, 'Error', 'Fehlende Parameter zur Berechnung!'))
+
+	def errorFeststoff(self):
+		try:
+			self.feststoffdichte()
+		except ValueError:
+			return(QMessageBox.warning(None, "Error", "Fehlende Paramter zur Berechnung!"))
 
 	def rohdichte(self):
 		masse_frisch = float(self.table_widget.txt_rd_fresh.text())
@@ -81,7 +95,7 @@ class App(QMainWindow):
 		rd_dry = str(round((masse_trocken/stechzyl_Volumen),4))
 		self.table_widget.lbl_rd_res_fresh.setText(rd_wet + g_cm3)
 		self.table_widget.lbl_rd_res_dry.setText(rd_dry + g_cm3)
-		#self.txt_festD_rohDry.setText(rd_dry)
+		self.table_widget.txt_festD_rohDry.setText(rd_dry)
 
 
 	def wkmax(self):
@@ -93,8 +107,41 @@ class App(QMainWindow):
 		wkmax = str(res_wkmax)
 		self.table_widget.lbl_wkmax_Result.setText(wkmax + vol)
 
+	def feststoffdichte(self):
+		rd_dry = float(self.table_widget.txt_festD_rohDry.text())
+		masse = float(self.table_widget.txt_festD_mass.text())
+		xylol = float(self.table_widget.txt_festD_xylol.text())
+		res_feststoff = round((masse/(50-xylol)), 3)
+		substanzV = round(((rd_dry/res_feststoff)*100), 2)
+		#res_feststoff = str(res_feststoff)
+		#substanzV=str(substanzV)
+		gpv = round((1 - (rd_dry/res_feststoff))*100, 2)
+
+
+
+		self.table_widget.lbl_festD_res_festD.setText(str(res_feststoff) + g_cm3)
+		self.table_widget.lbl_festD_res_substanzV.setText(str(substanzV) + vol)
+		self.table_widget.lbl_festD_res_gpv.setText(str(gpv) + vol)
+
+
+	def keyPressEvent(self, event):				# Code execution on Return key pressed
+		#active_tab = self.table_widget.tabs.currentWidget()
+		#tab_index = self.table_widget.tabs.indexOf(active_tab)
+		#changed = self.table_widget.currentChanged()
+		tab_index = self.table_widget.tabs.currentIndex()
+		if event.key() == Qt.Key_Return:
+			if tab_index == 0:
+				self.errorRohdichte()
+			elif tab_index ==1:
+				self.errorWkmax()
+			elif tab_index ==2:
+				self.errorFeststoff()
+
+
 	reg_ex = QRegExp("[0-9]+\.[0-9]+")
 	input_validator = QRegExpValidator(reg_ex)
+
+
 
 
 
@@ -105,7 +152,7 @@ class MyTableWidget(QWidget):
 
 		self.layout = QVBoxLayout(self)
 		self.tabs = QTabWidget()
-		self.tabs.setMovable(True)
+		#self.tabs.setMovable(True)			not working because of keyPress Return key
 		self.tab1 = QWidget()
 		self.tab2 = QWidget()
 		self.tab3 = QWidget()
@@ -117,12 +164,7 @@ class MyTableWidget(QWidget):
 		self.tabs.addTab(self.tab4, "Organische Substanz")
 
 
-		global vol
-		global g_cm3
-		global rd_dry          # temporary test for feststoffdichte
-		rd_dry = None           # temprory test for feststoffdichte
-		vol = " % Vol."
-		g_cm3 = " g/cm\u00B3"
+
 
 
 
@@ -211,38 +253,69 @@ class MyTableWidget(QWidget):
 		self.btn_wkmax_calc.setGeometry(QRect(365, 270, 100, 30))
 		self.btn_wkmax_calc.setText("Berechnen")
 
+		###################### Feststoffdichte Tab ################
+
+		self.lbl_festD_mass = QLabel(self.tab3)
+		self.lbl_festD_mass.setGeometry(QRect(40, 45, 200, 17))
+		self.lbl_festD_mass.setText("Masse der Probe (gemörsert):")
+
+		self.lbl_festD_xylol = QLabel(self.tab3)
+		self.lbl_festD_xylol.setGeometry(QRect(40, 85, 300, 17))
+		self.lbl_festD_xylol.setText("Xylolverbrauch:")
+
+		self.lbl_festD_rohDry = QLabel(self.tab3)
+		self.lbl_festD_rohDry.setGeometry(QRect(40, 125, 300, 17))
+		self.lbl_festD_rohDry.setText("Rohdichte trocken:")
+
+		self.lbl_festD_FestD = QLabel(self.tab3)
+		self.lbl_festD_FestD.setGeometry(QRect(40, 165, 300, 17))
+		self.lbl_festD_FestD.setText("Feststoffdichte:")
+
+		self.txt_festD_mass = QLineEdit(self.tab3)
+		self.txt_festD_mass.setGeometry(QRect(350, 40, 141, 27))
+		self.txt_festD_mass.setToolTip("Angabe in g")
+
+		self.txt_festD_xylol = QLineEdit(self.tab3)
+		self.txt_festD_xylol.setGeometry(QRect(350, 80, 141, 27))
+		self.txt_festD_xylol.setToolTip("Angabe in ml")
+
+		self.txt_festD_rohDry = QLineEdit(self.tab3)
+		self.txt_festD_rohDry.setGeometry(QRect(350, 120, 141, 27))
+		self.txt_festD_rohDry.setToolTip("Angabe in g/cm\u00B3")
+
+		self.lbl_festD_res_festD = QLabel(self.tab3)
+		self.lbl_festD_res_festD.setGeometry(QRect(350, 160, 300, 17))
+
+		self.lbl_festD_substanzV = QLabel(self.tab3)
+		self.lbl_festD_substanzV.setGeometry(QRect(40, 205, 300, 17))
+		self.lbl_festD_substanzV.setText("Substanzvolumen:")
+
+		self.lbl_festD_res_substanzV = QLabel(self.tab3)
+		self.lbl_festD_res_substanzV.setGeometry(QRect(350, 205, 300, 17))
+
+		self.lbl_festD_gpv = QLabel(self.tab3)
+		self.lbl_festD_gpv.setGeometry(QRect(40, 245, 300, 17))
+		self.lbl_festD_gpv.setText("Gesamtporenvolumen:")
+
+		self.lbl_festD_res_gpv = QLabel(self.tab3)
+		self.lbl_festD_res_gpv.setGeometry(QRect(350, 245, 300, 17))
+
+
+
+		self.btn_festD_calc = QPushButton(self.tab3)
+		self.btn_festD_calc.setGeometry(QRect(365, 270, 100, 30))
+		self.btn_festD_calc.setText("Berechnen")
+
+		#self.lbl_test = QLabel(self.tab1)
+		#self.lbl_test.setGeometry(QRect(365, 365, 100, 17))
+
+
 
 
 
 		self.layout.addWidget(self.tabs)
 		self.setLayout(self.layout)
 
-
-
-
-
-
-
-
-# class MyTableWidget(QWidget):
-#
-# 	def __init__(self, parent):
-# 		super(QWidget, self).__init__(parent)
-# 		self.layout = QVBoxLayout(self)
-#
-# 		# Initialize tab screen
-# 		self.tabs = QTabWidget()
-# 		self.tab1 = QWidget()
-# 		self.tab2 = QWidget()
-# 		self.tabs.resize(300,500)
-#
-# 		# Add tabs
-# 		self.tabs.addTab(self.tab1,"Rohdichte")
-# 		self.tabs.addTab(self.tab2,"Tab 2")
-#
-#
-# 		self.layout.addWidget(self.tabs)
-# 		self.setLayout(self.layout)
 
 if __name__ == '__main__':
 	app = QApplication(sys.argv)
