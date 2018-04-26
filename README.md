@@ -1,6 +1,8 @@
 # Terra Status
-This Application is programmed with python3 and PyQt5
-Capabilities: Calculation of several soil parameters according to ÖNORM
+This Application is programmed with python3 and PyQt5 <br/>
+Capabilities: Calculation of several soil parameters according to ÖNORM <br/>
+
+This is still work in progress!
 
 To do:
 * Data export capability (as xlsx, and csv)
